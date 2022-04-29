@@ -2,9 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const app = express();
 const mongoose = require('mongoose')
-// let todoModel = require('./todo_schema')
-let queriesModel = require('./queries_schema')
 
+let queriesModel = require('./queries_schema')
 
 mongoose.connect("mongodb://localhost:27017/queriesapp", {
   useNewUrlParser: true,
@@ -15,110 +14,94 @@ var db = mongoose.connection;db.on('open', () => {
     console.log('Connected to mongoDB');
 });
 
+// db.dropDatabase();
+
 db.on('error', (error) => {
     console.log(error);
     console.log('Error!')
 })
 
-const bodyParser = require('body-parser') 
+mongoose.set('useFindAndModify', false);
 
+const bodyParser = require('body-parser'); 
+const { default: Axios } = require('axios');
 app.use(bodyParser.urlencoded({ extended: false }));
- 
 app.use(bodyParser.json());
 
+app.use(cors());
 
 app.get('/', (req, res) => {  
  	  res.send("Backend for queries app is working!");    
 });
 
-//getting all questions
-app.get('/query/get', (req, res) => {  
-  queriesModel.find({question: {$exists: true}}, (err, questions) => {
-    if(err){      
-      res.send("Error while fetching questions");    
-    } else{ 	
-      res.json(questions);    
-    }}) 
-});
-
 //creating a query
-app.post('/query/add', (req, res) => {  
+app.post('/query/add', (req, res) => { 
+console.log(req.body);
 let newQuery = new queriesModel;
 newQuery.question = req.body.question;
+newQuery.myid = req.body.myid;
 newQuery.answers = [];
-// newTodo.title = req.body.todo;
-// newTodo.completed = false;
+
 newQuery.save((err) => {  
 	if(err){      
-		res.send("Error while adding Query");    
+    res.send("Error while adding Query");    
+    console.log("Error occured while adding query")
 	}else{ 	
-		res.send("Query added");    
+    res.send("Query added"); 
+    console.log('Query added!');
 	}})
 });
 
-// FETCH TO-DO
 
-// // completed
-// app.get("/todo/completed", (req, res) => {
-//   todoModel.find({ completed: true }, (err, todos) => {
-//     if (err) {
-//       res.send("Error while fetching Todos");
-//     } else {
-//       res.json(todos);
-//     }
-//   });
-// });
-
-// // uncompleted
-// app.get("/todo/uncompleted", (req, res) => {
-//   todoModel.find({ completed: false }, (err, todos) => {
-//     if (err) {
-//       res.send("Error while fetching Todos");
-//     } else {
-//       res.json(todos);
-//     }
-//   });
-// });
-
-// update query
-app.post("/query/update/:id", (req, res) => {
-  queriesModel.findByIdAndUpdate(
-    req.params.id,
-    { question: req.params.question },
-    (err, todo) => {
-      if (!err) {
-        res.send("Question Updated");
-      }
-    }
-  );
-});
-
-// delete query
-app.delete("/query/:id", (req, res) => {
-  let query = { _id: req.params.id };
-  queriesModel.deleteOne(query, err => {
+// getQuestions
+app.get("/query/get", (req, res) => {
+  console.log('Sending all questions')
+  queriesModel.find({ question: {$exists: true} }, (err, questions) => {
     if (err) {
-      res.send("Error while deleting todo");
+      res.send("Error while fetching Questions:", err);
     } else {
-      res.send("Query deleted");
+      res.json(questions);
+      console.log('Sent questions:',questions )
     }
   });
 });
 
+
 // add answer
 app.post("/query/answer/:id", (req, res) => {
-  queriesModel.findByIdAndUpdate(
-    req.params.id,
+  console.log(req);
+  queriesModel.findOneAndUpdate(
+    {myid: req.params.id},
     { $push: {"answers": req.body.answer}},
-    (err, todo) => {
-      if (!err) {
-        res.send("Question Updated");
+    (err, _) => {
+      if (err) {
+        console.log("Error while adding answer:", err);
+      } else {
+        res.send('Answer Added');
+        console.log('Answer added!', req.body.answer);
       }
     }
   );
 });
 
+//Adding some dummy question answers
+function addDummyQuestions(question, id, answersList){
+    let newQuery = new queriesModel;
+    newQuery.question = question;
+    newQuery.myid = id;
+    newQuery.answers = answersList;
 
+    newQuery.save((err) => {  
+      if(err){       
+        console.log("Error occured while adding query")
+      }else{ 	
+        console.log('Query added!');
+      }
+    })
+}
+addDummyQuestions('Is Educative Awesome?', 'sdjits23bs', ['Yes it is', 'Of course!'])
+addDummyQuestions('How to learn Vue.js?', 'a3jibs23hs', ['Take the course from Educative', 'Educative is a good platform to learn Vue.js'])
+addDummyQuestions('How to increase productivity?', 'G3sibt19hg', ['Take small breaks while working'])
 
 app.listen(3000, () => {
   console.log("Server started on port 3000");
